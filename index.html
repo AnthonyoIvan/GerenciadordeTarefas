@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Tarefas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            /* Variáveis do tema claro (padrão) */
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --container-bg: rgba(255, 255, 255, 0.95);
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --hover-bg: #f5f5f5;
+            --completed-color: #888;
+            --date-color: #666;
+            --input-border: #ddd;
+        }
+
+        [data-theme="dark"] {
+            /* Variáveis do tema escuro */
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --container-bg: rgba(40, 40, 40, 0.95);
+            --border-color: #444444;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --hover-bg: #2d2d2d;
+            --completed-color: #aaa;
+            --date-color: #bbb;
+            --input-border: #555;
+            --line-color: rgba(255, 255, 255, 0.1);
+            --task-border: #555;
+            --task-hover-bg: #3a3a3a;
+            --task-shadow: rgba(0, 0, 0, 0.3);
+            --task-bg: #ffffff;
+            --task-text: #000000;
+            --task-hover-bg: #f0f0f0;
+            --task-date-color: #555;
+            --task-number-color: #444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)),
+                            url('https://img.freepik.com/free-photo/wooden-desk-background_53876-88684.jpg');
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .user-info input {
+            padding: 8px;
+            border: none;
+            border-bottom: 2px solid #4CAF50;
+            font-size: 16px;
+            background: transparent;
+            width: 200px;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .export-btn {
+            min-width: 120px;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+        }
+
+        .export-excel {
+            background-color: #1f7244;
+            color: white;
+        }
+
+        .save-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background-color: #1976D2;
+        }
+
+        .next-day-btn {
+            background-color: #9C27B0;
+            color: white;
+        }
+
+        .next-day-btn:hover {
+            background-color: #7B1FA2;
+        }
+
+        .notebook-style {
+            background-image: linear-gradient(var(--line-color) 1px, transparent 1px);
+            background-size: 100% 2em;
+            position: relative;
+            padding-top: 10px;
+        }
+
+        .task-item {
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            margin-bottom: 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background-color: var(--hover-bg);
+        }
+
+        /* Ícones para os botões de exportação */
+        .icon {
+            font-size: 18px;
+            margin-right: 5px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="dark"] h1 {
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .task-form {
+            display: grid;
+            grid-template-columns: auto 150px 120px 120px;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            font-size: 16px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            gap: 10px;
+            cursor: move;
+            background-color: white;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+        }
+
+        .task-description {
+            flex: 1;
+        }
+
+        .task-completed {
+            text-decoration: line-through;
+            color: var(--completed-color);
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+        }
+
+        .delete-btn:hover {
+            background-color: #da190b;
+        }
+
+        .task-item.dragging {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+        }
+
+        .task-number {
+            min-width: 30px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .task-dates {
+            display: flex;
+            flex-direction: column;
+            font-size: 12px;
+            color: var(--date-color);
+            min-width: 140px;
+        }
+
+        .task-item > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        select {
+            padding: 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            font-size: 16px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        input[type="datetime-local"] {
+            padding: 8px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        /* Adicione estes estilos CSS após os estilos existentes */
+
+        /* Estilos base para dispositivos móveis primeiro (Mobile First) */
+        @media screen and (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+
+            .header-section {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .task-form {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .task-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 15px;
+            }
+
+            .task-dates {
+                width: 100%;
+                flex-direction: row;
+                justify-content: space-between;
+            }
+
+            .delete-btn {
+                width: 100%;
+                margin-top: 10px;
+            }
+
+            .user-section {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .export-buttons {
+                width: 100%;
+            }
+
+            .export-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .task-description {
+                width: 100%;
+                word-break: break-word;
+            }
+        }
+
+        /* Tablets e dispositivos médios */
+        @media screen and (min-width: 769px) and (max-width: 1024px) {
+            .container {
+                margin: 15px auto;
+                max-width: 90%;
+            }
+
+            .task-form {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .task-item {
+                flex-wrap: wrap;
+            }
+
+            .task-dates {
+                width: 100%;
+                margin-top: 10px;
+            }
+        }
+
+        /* Ajustes específicos para telas muito pequenas */
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .user-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+
+            .user-info input {
+                width: 150px;
+            }
+
+            input[type="text"],
+            input[type="datetime-local"],
+            select,
+            button {
+                font-size: 14px;
+                padding: 8px;
+            }
+
+            .task-dates {
+                font-size: 11px;
+                flex-direction: column;
+            }
+        }
+
+        /* Ajustes para telas grandes */
+        @media screen and (min-width: 1025px) {
+            .container {
+                max-width: 1000px;
+            }
+
+            .task-form {
+                grid-template-columns: auto 150px 120px 120px;
+            }
+        }
+
+        /* Ajustes para modo paisagem em dispositivos móveis */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .container {
+                margin: 5px;
+            }
+
+            .task-form {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .header-section {
+                flex-direction: row;
+            }
+        }
+
+        /* Ajustes para acessibilidade */
+        @media (prefers-reduced-motion: reduce) {
+            .task-item {
+                transition: none;
+            }
+        }
+
+        /* Ajustes para modo escuro do sistema */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-image: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+                                url('https://img.freepik.com/free-photo/wooden-desk-background_53876-88684.jpg');
+            }
+
+            .container {
+                background-color: rgba(30, 30, 30, 0.95);
+                border-color: #444;
+            }
+
+            h1, input, select, .task-description {
+                color: #fff;
+            }
+
+            input[type="text"],
+            input[type="datetime-local"],
+            select {
+                background-color: rgba(50, 50, 50, 0.8);
+                border-color: #555;
+                color: #fff;
+            }
+
+            .task-item {
+                background-color: rgba(40, 40, 40, 0.95);
+                border-color: #444;
+            }
+
+            .task-dates {
+                color: #aaa;
+            }
+
+            .task-completed {
+                color: #666;
+            }
+        }
+
+        /* Ajustes para telas de alta densidade (Retina) */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .container {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            }
+        }
+
+        /* Adicione um estilo para o feedback de salvamento */
+        .save-feedback {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: none;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            20% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        /* Adicione estes estilos CSS */
+        .save-options {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .save-menu {
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+        }
+
+        .save-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .save-option:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* Ajuste para modo escuro */
+        @media (prefers-color-scheme: dark) {
+            .save-options {
+                background-color: #333;
+                border: 1px solid #444;
+            }
+            
+            .save-option {
+                color: white;
+            }
+            
+            .save-option:hover {
+                background-color: #444;
+            }
+        }
+
+        /* Adicione estes estilos CSS */
+        .theme-switch {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .theme-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .theme-light {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .theme-dark {
+            background-color: #333;
+            color: #fff;
+        }
+
+        .theme-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .theme-btn.active {
+            box-shadow: 0 0 0 2px #4CAF50;
+        }
+
+        /* Adicione estes estilos */
+        .open-btn {
+            background-color: #FF9800;
+            color: white;
+        }
+
+        .open-btn:hover {
+            background-color: #F57C00;
+        }
+
+        /* Adicione estilo para o input file oculto */
+        .hidden-file-input {
+            display: none;
+        }
+
+        [data-theme="dark"] .task-item {
+            background-color: var(--task-bg);
+            color: var(--task-text);
+            border: 1px solid var(--task-border);
+            box-shadow: 0 2px 4px var(--task-shadow);
+        }
+
+        [data-theme="dark"] .task-item:hover {
+            background-color: var(--task-hover-bg);
+        }
+
+        [data-theme="dark"] .task-dates {
+            color: var(--task-date-color);
+        }
+
+        [data-theme="dark"] .task-number {
+            color: var(--task-number-color);
+        }
+
+        [data-theme="dark"] .task-completed {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-switch">
+        <button onclick="setTheme('light')" class="theme-btn theme-light" id="lightTheme">
+            <span class="icon">☀️</span> Claro
+        </button>
+        <button onclick="setTheme('dark')" class="theme-btn theme-dark" id="darkTheme">
+            <span class="icon">🌙</span> Escuro
+        </button>
+    </div>
+
+    <div class="container">
+        <div class="header-section">
+            <div class="user-section">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info">
+                    <input type="text" id="userName" placeholder="Seu nome" onchange="updateUserName()">
+                </div>
+            </div>
+            <div class="export-buttons">
+                <button class="export-btn save-btn" onclick="saveTasksToFile()">
+                    <span class="icon">💾</span> Salvar
+                </button>
+                <button class="export-btn open-btn" onclick="openTaskFile()">
+                    <span class="icon">📂</span> Abrir
+                </button>
+                <button class="export-btn export-excel" onclick="exportToExcel()">
+                    <span class="icon">📊</span> Exportar Excel
+                </button>
+            </div>
+        </div>
+
+        <h1>Gerenciador de Tarefas</h1>
+        
+        <div class="task-form">
+            <input type="text" id="taskInput" placeholder="Digite uma nova tarefa...">
+            <input type="datetime-local" id="dueDateInput">
+            <button onclick="addTask()">Adicionar</button>
+        </div>
+
+        <ul class="task-list" id="taskList">
+            <!-- As tarefas serão inseridas aqui dinamicamente -->
+        </ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadTasks);
+
+        function loadTasks() {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                taskList.innerHTML = `
+                    <li class="task-item" style="justify-content: center; font-style: italic; color: #666;">
+                        Nenhuma tarefa cadastrada
+                    </li>`;
+                return;
+            }
+            
+            tasks.forEach((task, index) => {
+                const li = createTaskElement(task, index + 1);
+                taskList.appendChild(li);
+            });
+
+            setupDragAndDrop();
+        }
+
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const dueDate = document.getElementById('dueDateInput').value;
+            const description = input.value.trim();
+            
+            if (description) {
+                const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+                const newTask = {
+                    id: Date.now(),
+                    description: description,
+                    completed: false,
+                    created_at: new Date().toISOString(),
+                    due_date: dueDate
+                };
+                
+                tasks.push(newTask);
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                loadTasks();
+                
+                input.value = '';
+                document.getElementById('dueDateInput').value = '';
+            }
+        }
+
+        function createTaskElement(task, index) {
+            const li = document.createElement('li');
+            li.className = 'task-item';
+            li.draggable = true;
+            li.dataset.taskId = task.id;
+
+            const dueDate = task.due_date ? new Date(task.due_date).toLocaleString() : 'Sem data';
+            const createdDate = new Date(task.created_at).toLocaleString();
+
+            li.innerHTML = `
+                <span class="task-number">${index}.</span>
+                <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} 
+                    onclick="toggleTask(${task.id})">
+                <span class="task-description ${task.completed ? 'task-completed' : ''}">${task.description}</span>
+                <div class="task-dates">
+                    <span>Criado: ${createdDate}</span>
+                    <span>Prazo: ${dueDate}</span>
+                </div>
+                <button class="delete-btn" onclick="deleteTask(${task.id})">Excluir</button>
+            `;
+            return li;
+        }
+
+        function setupDragAndDrop() {
+            const taskItems = document.querySelectorAll('.task-item');
+            const taskList = document.getElementById('taskList');
+
+            taskItems.forEach(item => {
+                item.addEventListener('dragstart', () => {
+                    item.classList.add('dragging');
+                });
+
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                    updateTasksOrder();
+                });
+            });
+
+            taskList.addEventListener('dragover', e => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(taskList, e.clientY);
+                const draggable = document.querySelector('.dragging');
+                if (afterElement == null) {
+                    taskList.appendChild(draggable);
+                } else {
+                    taskList.insertBefore(draggable, afterElement);
+                }
+            });
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function updateTasksOrder() {
+            const taskItems = document.querySelectorAll('.task-item');
+            const tasks = [];
+            
+            taskItems.forEach(item => {
+                const taskId = parseInt(item.dataset.taskId);
+                const oldTasks = JSON.parse(localStorage.getItem('tasks')) || [];
+                const task = oldTasks.find(t => t.id === taskId);
+                if (task) {
+                    tasks.push(task);
+                }
+            });
+
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            loadTasks();
+        }
+
+        function toggleTask(taskId) {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                loadTasks();
+            }
+        }
+
+        function deleteTask(taskId) {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const updatedTasks = tasks.filter(t => t.id !== taskId);
+            localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+            loadTasks();
+        }
+
+        document.getElementById('taskInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+
+        function updateUserName() {
+            const userName = document.getElementById('userName').value;
+            const userAvatar = document.getElementById('userAvatar');
+            
+            // Salva o nome do usuário no localStorage
+            localStorage.setItem('userName', userName);
+            
+            // Atualiza o avatar com a primeira letra do nome
+            userAvatar.textContent = userName.charAt(0).toUpperCase();
+        }
+
+        // Carrega o nome do usuário ao iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedName = localStorage.getItem('userName');
+            if (savedName) {
+                document.getElementById('userName').value = savedName;
+                document.getElementById('userAvatar').textContent = savedName.charAt(0).toUpperCase();
+            }
+            loadTasks();
+        });
+
+        function exportToExcel() {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const userName = document.getElementById('userName').value || 'Não identificado';
+            const today = new Date().toLocaleDateString('pt-BR');
+            
+            // Prepara os dados para o Excel
+            const excelData = tasks.map((task, index) => ({
+                'Nº': index + 1,
+                '✓': task.completed ? '☒' : '☐',
+                'Descrição': task.description,
+                'Data de Criação': new Date(task.created_at).toLocaleString('pt-BR'),
+                'Prazo': task.due_date ? new Date(task.due_date).toLocaleString('pt-BR') : 'Sem data'
+            }));
+            
+            // Cria uma planilha
+            const ws = XLSX.utils.json_to_sheet([]);
+            const wb = XLSX.utils.book_new();
+            
+            // Adiciona cabeçalho com informações do documento
+            const header = [
+                ['GERENCIADOR DE TAREFAS'],
+                [''],
+                [`Usuário: ${userName}`],
+                [`Data de emissão: ${today}`],
+                [''],
+                ['RELATÓRIO DE TAREFAS'],
+                ['']
+            ];
+            
+            // Adiciona o cabeçalho
+            XLSX.utils.sheet_add_aoa(ws, header, { origin: 'A1' });
+            
+            // Adiciona os dados das tarefas
+            XLSX.utils.sheet_add_json(ws, excelData, { origin: 'A8' });
+            
+            // Configurações de estilo (largura das colunas)
+            const cols = [
+                { wch: 4 },  // Nº
+                { wch: 3 },  // Checkbox
+                { wch: 40 }, // Descrição
+                { wch: 20 }, // Data de Criação
+                { wch: 20 }  // Prazo
+            ];
+            ws['!cols'] = cols;
+            
+            // Adiciona a planilha ao workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Tarefas');
+            
+            // Salva o arquivo
+            XLSX.writeFile(wb, `tarefas_${userName.replace(/\s+/g, '_')}.xlsx`);
+        }
+
+        async function saveTasksToFile() {
+            try {
+                const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+                const userName = document.getElementById('userName').value || 'Usuario';
+                const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+                
+                // Cria o objeto de dados
+                const saveData = {
+                    version: "1.0",
+                    timestamp: new Date().toISOString(),
+                    userName: userName,
+                    tasks: tasks
+                };
+                
+                // Converte para string e codifica
+                const encodedData = btoa(JSON.stringify(saveData));
+                
+                // Cria o blob
+                const blob = new Blob([encodedData], { type: 'application/gtask' });
+                
+                try {
+                    // Abre o diálogo do sistema para salvar arquivo
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: `tarefas_${userName}_${date}.gtask`,
+                        types: [{
+                            description: 'Arquivo de Tarefas',
+                            accept: {
+                                'application/gtask': ['.gtask']
+                            }
+                        }]
+                    });
+                    
+                    // Escreve o conteúdo no arquivo
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    
+                    showSaveFeedback('Arquivo salvo com sucesso!');
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        // Usuário cancelou a operação
+                        return;
+                    }
+                    
+                    // Se o navegador não suporta File System Access API, usa o método fallback
+                    console.warn('File System Access API não suportada, usando método alternativo');
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `tarefas_${userName}_${date}.gtask`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showSaveFeedback('Arquivo salvo com sucesso!');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                showSaveFeedback('Erro ao salvar o arquivo', 'error');
+            }
+        }
+
+        function openTaskFile() {
+            // Cria input file temporário
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.gtask';
+            fileInput.className = 'hidden-file-input';
+            
+            fileInput.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        // Decodifica e parseia os dados
+                        const decodedData = atob(e.target.result);
+                        const saveData = JSON.parse(decodedData);
+                        
+                        // Verifica a versão do arquivo
+                        if (!saveData.version || saveData.version !== "1.0") {
+                            throw new Error("Versão do arquivo incompatível");
+                        }
+                        
+                        // Atualiza os dados
+                        localStorage.setItem('tasks', JSON.stringify(saveData.tasks));
+                        if (saveData.userName) {
+                            localStorage.setItem('userName', saveData.userName);
+                            document.getElementById('userName').value = saveData.userName;
+                            document.getElementById('userAvatar').textContent = 
+                                saveData.userName.charAt(0).toUpperCase();
+                        }
+                        
+                        // Recarrega as tarefas
+                        loadTasks();
+                        showSaveFeedback('Arquivo carregado com sucesso!');
+                        
+                    } catch (error) {
+                        showSaveFeedback('Erro ao abrir arquivo: Formato inválido');
+                        console.error('Erro ao abrir arquivo:', error);
+                    }
+                };
+                
+                reader.onerror = function() {
+                    showSaveFeedback('Erro ao ler o arquivo');
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            document.body.appendChild(fileInput);
+            fileInput.click();
+            document.body.removeChild(fileInput);
+        }
+
+        function showSaveFeedback(message, type = 'success') {
+            const existingFeedback = document.querySelector('.save-feedback');
+            if (existingFeedback) {
+                existingFeedback.remove();
+            }
+            
+            const feedback = document.createElement('div');
+            feedback.className = `save-feedback ${type}`;
+            feedback.textContent = message;
+            
+            // Ajusta a cor baseado no tipo
+            if (type === 'error') {
+                feedback.style.backgroundColor = '#ff5252';
+            }
+            
+            document.body.appendChild(feedback);
+            feedback.style.display = 'block';
+            
+            setTimeout(() => {
+                feedback.remove();
+            }, 3000);
+        }
+
+        function showNextDayTasks() {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+            
+            const nextDayTasks = tasks.filter(task => {
+                if (!task.due_date) return false;
+                const taskDate = new Date(task.due_date);
+                taskDate.setHours(0, 0, 0, 0);
+                return taskDate.getTime() === tomorrow.getTime();
+            });
+            
+            // Atualiza a visualização para mostrar apenas tarefas do próximo dia
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            
+            if (nextDayTasks.length === 0) {
+                taskList.innerHTML = `
+                    <li class="task-item" style="justify-content: center; font-style: italic; color: #666;">
+                        Não há tarefas programadas para amanhã
+                    </li>`;
+                return;
+            }
+            
+            nextDayTasks.forEach((task, index) => {
+                const li = createTaskElement(task, index + 1);
+                taskList.appendChild(li);
+            });
+            
+            // Adiciona botão para voltar à visualização normal
+            const returnButton = document.createElement('button');
+            returnButton.className = 'export-btn';
+            returnButton.style.marginTop = '20px';
+            returnButton.style.width = '100%';
+            returnButton.innerHTML = '<span class="icon">↩️</span> Voltar para todas as tarefas';
+            returnButton.onclick = loadTasks;
+            taskList.appendChild(returnButton);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            
+            // Atualiza os botões de tema
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(theme + 'Theme').classList.add('active');
+            
+            // Atualiza o background do body para o tema escuro
+            if (theme === 'dark') {
+                document.body.style.backgroundImage = `
+                    linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+                    url('https://img.freepik.com/free-photo/wooden-desk-background_53876-88684.jpg')
+                `;
+            } else {
+                document.body.style.backgroundImage = `
+                    linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)),
+                    url('https://img.freepik.com/free-photo/wooden-desk-background_53876-88684.jpg')
+                `;
+            }
+        }
+
+        // Modifique o evento DOMContentLoaded existente
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            setTheme(savedTheme);
+            
+            // Carrega as outras configurações...
+            const savedName = localStorage.getItem('userName');
+            if (savedName) {
+                document.getElementById('userName').value = savedName;
+                document.getElementById('userAvatar').textContent = savedName.charAt(0).toUpperCase();
+            }
+            loadTasks();
+        });
+    </script>
+</body>
+</html> 
